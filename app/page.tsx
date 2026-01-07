@@ -47,7 +47,7 @@ export default function Home() {
             >
               <Image
                 className="dark:invert"
-                src="https://dollardeploy.com/icon.svg"
+                src="https://dollardeploy.com/logo.svg"
                 alt="DollarDeploy logomark"
                 width={32}
                 height={32}
