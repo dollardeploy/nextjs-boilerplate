@@ -46,7 +46,7 @@ export default function Home() {
               rel="noopener noreferrer"
             >
               <Image
-                className="dark:invert"
+                className="invert"
                 src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMF8xMjQ0XzE0NykiPgo8bWFzayBpZD0ibWFzazBfMTI0NF8xNDciIHN0eWxlPSJtYXNrLXR5cGU6bHVtaW5hbmNlIiBtYXNrVW5pdHM9InVzZXJTcGFjZU9uVXNlIiB4PSIwIiB5PSIwIiB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCI+CjxwYXRoIGQ9Ik0xMjggMEgwVjEyOEgxMjhWMFoiIGZpbGw9IndoaXRlIi8+CjwvbWFzaz4KPGcgbWFzaz0idXJsKCNtYXNrMF8xMjQ0XzE0NykiPgo8cGF0aCBkPSJNMjEuNjQ2IDE1LjQ4MDJIMTExLjU4M1YxMDIuODJMODkuMjIzMyA4MS4xMDU2VjM3LjE5NDVINDQuMDA2MkwyMS42NDYgMTUuNDgwMloiIGZpbGw9ImJsYWNrIi8+CjxwYXRoIGQ9Ik00NC4wMDY0IDM3LjE5NDNMODkuMjIzNSA4MS4xMDU1VjEyNC41MzRMLTAuNzEzODY3IDM3LjE5NDNINDQuMDA2NFoiIGZpbGw9ImJsYWNrIi8+CjwvZz4KPC9nPgo8ZGVmcz4KPGNsaXBQYXRoIGlkPSJjbGlwMF8xMjQ0XzE0NyI+CjxyZWN0IHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiBmaWxsPSJ3aGl0ZSIvPgo8L2NsaXBQYXRoPgo8L2RlZnM+Cjwvc3ZnPgo="
                 alt="DollarDeploy logo"
                 width={32}
