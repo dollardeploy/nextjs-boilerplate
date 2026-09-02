@@ -5,8 +5,7 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: true,
   experimental: {
     webVitalsAttribution: ["CLS", "LCP"],
-    serverSourceMaps: true,
-    isolatedDevBuild: false
+    serverSourceMaps: true
   },
   devIndicators: false,
   // https://nextjs.org/docs/app/api-reference/config/next-config-js/logging
