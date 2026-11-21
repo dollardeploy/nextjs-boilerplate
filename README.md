@@ -34,3 +34,13 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 ## Deploy on DollarDeploy
 
 Fork this repo as public template and deploy in minutes to your own VPS with DollarDeploy. Start with a template: https://dollardeploy.com/r/nextjs-boilerplate
+
+## Cron jobs
+
+`app/api/cron/route.ts` is ready for [DollarDeploy cron jobs](https://docs.dollardeploy.com/cron/).
+Create an HTTP cron job with path `/api/cron`, then redeploy once so the app picks up the
+generated `CRON_SECRET`. Requests without `Authorization: Bearer $CRON_SECRET` get a 401.
+
+```bash
+curl https://your-app.example.com/api/cron -H "Authorization: Bearer $CRON_SECRET"
+```
