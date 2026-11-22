@@ -1,53 +1,75 @@
+import type { ReactNode } from "react";
 import { connection } from "next/server";
 import { PixelLaunch } from "./pixel-launch";
 
 const DEPLOY_URL = "https://dollardeploy.com/r/nextjs-boilerplate";
 const DOCS_URL = "https://docs.dollardeploy.com";
 
+// lucide icons (lucide.dev), inlined so the starter needs no icon package.
+const ICONS = {
+  GitBranch: (
+    <>
+      <line x1="6" x2="6" y1="3" y2="15" />
+      <circle cx="18" cy="6" r="3" />
+      <circle cx="6" cy="18" r="3" />
+      <path d="M18 9a9 9 0 0 1-9 9" />
+    </>
+  ),
+  ShieldCheck: (
+    <>
+      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+      <path d="m9 12 2 2 4-4" />
+    </>
+  ),
+  Clock: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </>
+  ),
+  Activity: (
+    <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />
+  ),
+} satisfies Record<string, ReactNode>;
+
 const FEATURES = [
-  ["Push to deploy", "Every git push builds and ships. Rollbacks are one click."],
-  ["Your own server", "Hetzner, DigitalOcean or any VPS. You keep the box and the data."],
-  ["HTTPS by default", "Certificates are issued and renewed for every domain you attach."],
-  ["Cron jobs", "Hit /api/cron on a schedule with a bearer secret. Run history included."],
-  ["Backups & monitoring", "Scheduled backups, live metrics and host inspection built in."],
-  ["Works with Claude", "Deploy and debug from Claude Code with the DollarDeploy MCP."],
+  ["GitBranch", "Deploys from GitHub", "Every push to main builds and ships on your server."],
+  ["ShieldCheck", "HTTPS", "Certificates issued and renewed for every domain."],
+  ["Clock", "Cron", "Scheduled calls to /api/cron, with run history and logs."],
+  ["Activity", "Monitoring and logs", "Host metrics, app logs and backups, built in."],
 ] as const;
 
-const TERMINAL = [
-  ["$", "ddc deploy"],
-  ["›", "cloning github.com/you/nextjs-boilerplate"],
-  ["›", "npm ci && npm run build"],
-  ["›", "starting systemd service · node 24"],
-  ["›", "issuing certificate for app.example.com"],
-  ["✓", "live at https://app.example.com in 48s"],
+const STEPS = [
+  ["01", "git push origin main"],
+  ["02", "npm ci && npm run build"],
+  ["03", "live at https://app.example.com"],
 ] as const;
 
 function Logo() {
   return (
-    <svg viewBox="0 0 128 128" className="size-5" fill="currentColor" aria-hidden>
-      <path d="M21.6 15.5h90v87.3L89.2 81.1V37.2H44z" />
-      <path d="M44 37.2 89.2 81.1v43.4L-.7 37.2z" />
+    <svg viewBox="0 0 123 122" className="size-4" fill="currentColor" aria-hidden>
+      <path d="M24.68.2h97.55v97.55L97.98 73.49V24.45H48.93z" />
+      <path d="M48.93 24.45 97.98 73.5V122L.43 24.45z" />
     </svg>
   );
 }
 
-// Rendered on every request, on your server. Proof the app runs on real infra.
-async function ServerPanel() {
+// Rendered on every request by your own Node.js process.
+async function ServerFacts() {
   await connection();
-  const mem = process.memoryUsage().rss / 1024 / 1024;
   const rows = [
     ["runtime", `node ${process.version}`],
-    ["platform", `${process.platform} / ${process.arch}`],
+    ["platform", `${process.platform}/${process.arch}`],
     ["uptime", `${Math.floor(process.uptime())}s`],
-    ["memory", `${mem.toFixed(0)} MB rss`],
-    ["rendered", new Date().toISOString().replace("T", " ").slice(0, 19) + " UTC"],
+    ["memory", `${Math.round(process.memoryUsage().rss / 1048576)} MB`],
+    ["rendered", `${new Date().toISOString().slice(11, 19)} UTC`],
   ];
   return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 font-mono text-xs">
+    <dl className="grid grid-cols-[6rem_1fr] gap-y-2 font-mono text-sm">
       {rows.map(([k, v]) => (
         <div key={k} className="contents">
           <dt className="text-muted">{k}</dt>
-          <dd className="truncate">{v}</dd>
+          <dd>{v}</dd>
         </div>
       ))}
     </dl>
@@ -56,103 +78,101 @@ async function ServerPanel() {
 
 export default function Home() {
   return (
-    <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-5 sm:px-8">
-      <header className="flex items-center justify-between py-6">
-        <a href={DEPLOY_URL} className="flex items-center gap-2 font-medium">
+    <div className="mx-auto flex min-h-svh max-w-6xl flex-col overflow-x-clip px-5 sm:px-10">
+      <header className="flex h-16 items-center justify-between">
+        <a href={DEPLOY_URL} className="flex items-center gap-2 font-medium tracking-tight">
           <Logo />
           DollarDeploy
         </a>
-        <nav className="flex items-center gap-5 text-sm text-muted">
-          <a href={DOCS_URL} className="hover:text-foreground">
-            Docs
-          </a>
-          <a
-            href={DEPLOY_URL}
-            className="rounded-full bg-foreground px-4 py-1.5 text-background transition-opacity hover:opacity-85"
-          >
-            Deploy
-          </a>
-        </nav>
+        <a href={DOCS_URL} className="font-mono text-sm text-muted hover:text-foreground">
+          docs
+        </a>
       </header>
 
-      <main className="flex flex-1 flex-col gap-20 pb-20 pt-10 sm:pt-16">
-        <section className="flex flex-col items-start gap-6">
-          <span className="flex items-center gap-2 rounded-full border border-border px-3 py-1 font-mono text-xs text-muted">
-            <span className="size-1.5 animate-pulse rounded-full bg-live" />
-            Next.js 16 · live on your own server
-          </span>
-          <h1 className="max-w-3xl font-serif text-5xl leading-[1.05] tracking-tight sm:text-7xl">
-            Your app. Your server. <em className="text-muted">Zero DevOps.</em>
-          </h1>
-          <p className="max-w-xl text-lg text-muted">
-            A tiny Next.js starter that ships straight from GitHub to a VPS you own, with
-            HTTPS, cron jobs and redeploys on every push. Edit{" "}
-            <code className="font-mono text-sm text-foreground">app/page.tsx</code> to make it
-            yours.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <a
-              href={DEPLOY_URL}
-              className="flex h-11 items-center gap-2 rounded-full bg-foreground px-5 font-medium text-background transition-opacity hover:opacity-85"
-            >
-              <Logo />
-              Deploy this template
-            </a>
-            <a
-              href={DOCS_URL}
-              className="flex h-11 items-center rounded-full border border-border px-5 font-medium transition-colors hover:bg-surface"
-            >
-              Read the docs
-            </a>
-          </div>
-        </section>
-
-        <section className="overflow-hidden rounded-2xl border border-border bg-surface">
-          <div className="flex items-center justify-between border-b border-border px-4 py-2.5 font-mono text-xs text-muted">
-            <span>~/launchpad</span>
-            <span>click to launch</span>
-          </div>
-          <PixelLaunch />
-        </section>
-
-        <section className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-border bg-foreground p-5 font-mono text-sm text-background">
-            {TERMINAL.map(([sign, line]) => (
-              <p key={line} className="flex gap-3 py-0.5">
-                <span className="opacity-50">{sign}</span>
-                {line}
-              </p>
-            ))}
-          </div>
-          <div className="flex flex-col justify-between gap-6 rounded-2xl border border-border p-5">
-            <div>
-              <h2 className="font-serif text-3xl">This page was just rendered.</h2>
-              <p className="mt-1 text-sm text-muted">
-                By your Node.js process, on your hardware. Refresh to see it change.
-              </p>
+      <main className="flex-1">
+        <section className="grid items-center gap-8 py-16 md:min-h-[calc(100svh-4rem)] md:grid-cols-[minmax(0,1.15fr)_1fr] md:py-0">
+          <div>
+            <p className="font-mono text-xs uppercase tracking-wider text-muted">
+              Next.js 16 boilerplate
+            </p>
+            <h1 className="mt-6 text-[clamp(36px,5vw,64px)] leading-[0.98]">
+              <span className="block font-medium tracking-[-0.06em] md:whitespace-nowrap">Your app. Your server.</span>
+              <span className="block font-dither text-[1.45em] leading-[0.85] tracking-[-0.015em]">
+                Zero DevOps.
+              </span>
+            </h1>
+            <p className="mt-8 max-w-[42ch] text-lg leading-[1.35] text-secondary">
+              Ship this starter from GitHub to a server you own, with HTTPS, cron and
+              redeploys on every push.
+            </p>
+            <div className="mt-10 flex flex-wrap gap-3">
+              <a
+                href={DEPLOY_URL}
+                className="rounded-full bg-foreground px-6 py-3 font-medium text-background transition-opacity hover:opacity-90"
+              >
+                Deploy this template
+              </a>
+              <a
+                href={DOCS_URL}
+                className="rounded-full border border-border px-6 py-3 font-medium transition-colors hover:border-muted"
+              >
+                Read the docs
+              </a>
             </div>
-            <ServerPanel />
+          </div>
+          <div className="-mx-5 sm:-mx-10 md:mx-0">
+            <PixelLaunch />
           </div>
         </section>
 
-        <section className="grid gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map(([title, body]) => (
-            <div key={title} className="bg-background p-6">
-              <h3 className="font-medium">{title}</h3>
-              <p className="mt-1.5 text-sm text-muted">{body}</p>
+        <section className="grid gap-12 border-t border-border py-16 md:grid-cols-2">
+          <div>
+            <h2 className="text-2xl font-medium tracking-[-0.04em]">From push to production.</h2>
+            <ol className="mt-6 space-y-3 font-mono text-sm">
+              {STEPS.map(([n, line]) => (
+                <li key={n} className="flex gap-4">
+                  <span className="text-muted">{n}</span>
+                  {line}
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div>
+            <h2 className="text-2xl font-medium tracking-[-0.04em]">Rendered on your server.</h2>
+            <p className="mt-2 text-secondary">This request, just now. Refresh to see it change.</p>
+            <div className="mt-6">
+              <ServerFacts />
+            </div>
+          </div>
+        </section>
+
+        <section className="grid border-t border-border sm:grid-cols-2 lg:grid-cols-4">
+          {FEATURES.map(([icon, title, body]) => (
+            <div key={title} className="border-b border-border py-10 sm:pr-8 lg:border-b-0">
+              <svg
+                viewBox="0 0 24 24"
+                className="size-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                {ICONS[icon]}
+              </svg>
+              <h3 className="mt-5 font-medium">{title}</h3>
+              <p className="mt-1 text-sm leading-[1.45] text-muted">{body}</p>
             </div>
           ))}
         </section>
       </main>
 
-      <footer className="flex flex-wrap justify-between gap-2 border-t border-border py-6 font-mono text-xs text-muted">
-        <span>Next.js 16 · React 19 · Tailwind v4</span>
-        <span>
-          Plans from $4/mo ·{" "}
-          <a href={DEPLOY_URL} className="text-foreground hover:underline">
-            dollardeploy.com
-          </a>
-        </span>
+      <footer className="flex flex-wrap justify-between gap-2 border-t border-border py-8 font-mono text-xs text-muted">
+        <span>edit app/page.tsx to start</span>
+        <a href={DEPLOY_URL} className="hover:text-foreground">
+          dollardeploy.com
+        </a>
       </footer>
     </div>
   );

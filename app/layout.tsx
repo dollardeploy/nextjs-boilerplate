@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Inter, Instrument_Serif, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
 const inter = Inter({
@@ -12,17 +13,15 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
-const instrumentSerif = Instrument_Serif({
-  variable: "--font-instrument-serif",
-  subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
+// Redaction 35 (SIL OFL, see app/fonts/OFL-Redaction.txt): the "dither serif" payoff line.
+const redaction = localFont({
+  src: "./fonts/Redaction_35-Regular.woff2",
+  variable: "--font-redaction",
 });
 
 export const metadata: Metadata = {
   title: "Next.js Boilerplate · DollarDeploy",
-  description:
-    "A minimal Next.js 16 starter, deployed to your own server with DollarDeploy.",
+  description: "A minimal Next.js 16 starter, deployed to a server you own with DollarDeploy.",
 };
 
 export default function RootLayout({
@@ -33,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} ${instrumentSerif.variable} antialiased`}
+        className={`${inter.variable} ${jetbrainsMono.variable} ${redaction.variable} antialiased`}
       >
         {children}
       </body>

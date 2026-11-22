@@ -2,43 +2,62 @@
 
 import { useEffect, useRef } from "react";
 
-// Low-res scene, scaled up with `image-rendering: pixelated`.
-const W = 192;
-const H = 108;
-const GROUND = 92;
-const PAD_X = 96;
-const CYCLE = 7000; // ms per launch loop
-const IGNITE = 1000; // rumble starts
-const LIFTOFF = 1800;
+// A night launch, rendered as a tone map and quantised with an 8x8 Bayer ordered dither
+// to three ink levels: the DollarDeploy dither style, but alive.
+const W = 160;
+const H = 96;
+const GROUND = 80;
+const PAD_X = 108;
+const CYCLE = 7500; // ms per launch loop
+const IGNITE = 900; // engines light, rocket shakes
+const LIFTOFF = 1900;
 
-// 4x4 ordered-dither matrix: fades are drawn as patterns, not alpha.
-const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-const dither = (x: number, y: number, v: number) =>
-  v > (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16;
+// Ink levels, weakest to strongest. Blurple only exists inside the dither; on paper it is
+// plain ink, like the landing page.
+const PALETTE_DARK = ["#242cc7", "#4a69e8", "#d4e4ff"];
+const PALETTE_LIGHT = ["#b5b3b0", "#585755", "#090909"];
+
+const BAYER = (() => {
+  let m = [[0]];
+  while (m.length < 8) {
+    const n = m.length;
+    const next = Array.from({ length: n * 2 }, () => new Array<number>(n * 2).fill(0));
+    for (let y = 0; y < n; y++)
+      for (let x = 0; x < n; x++) {
+        const v = m[y][x] * 4;
+        next[y][x] = v;
+        next[y][x + n] = v + 2;
+        next[y + n][x] = v + 3;
+        next[y + n][x + n] = v + 1;
+      }
+    m = next;
+  }
+  return Float32Array.from(m.flat(), (v) => (v + 0.5) / 64);
+})();
 
 const ROCKET = [
-  ".....#.....",
-  "....###....",
-  "...#####...",
-  "...#####...",
-  "..###.###..",
-  "..##...##..",
-  "..###.###..",
-  "..#######..",
-  "..#######..",
-  "..#######..",
-  "..#######..",
-  ".##.###.##.",
-  "###.###.###",
-  "##..###..##",
-  "#....#....#",
+  "....#....",
+  "...###...",
+  "..#####..",
+  "..#####..",
+  "..##.##..",
+  "..#...#..",
+  "..##.##..",
+  "..#####..",
+  "..#####..",
+  "..#####..",
+  "..#####..",
+  ".#######.",
+  "##.###.##",
+  "#..###..#",
 ];
+const ROCKET_W = ROCKET[0].length;
 const ROCKET_H = ROCKET.length;
-const REST_Y = GROUND - 2 - ROCKET_H;
+const REST_Y = GROUND - 1 - ROCKET_H;
+const RACKS = [16, 40];
 
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; max: number };
 
-// Deterministic pseudo-random, so server-rack and star layout never shift.
 function rng(seed: number) {
   return () => {
     seed = (seed * 16807) % 2147483647;
@@ -46,30 +65,38 @@ function rng(seed: number) {
   };
 }
 
-function staticPixels(): [number, number][] {
-  const rand = rng(42);
-  const px: [number, number][] = [];
-  for (let y = GROUND + 1; y < H; y++) {
-    const density = 0.15 + ((y - GROUND) / (H - GROUND)) * 0.6;
-    for (let x = 0; x < W; x++) if (dither(x, y, density)) px.push([x, y]);
-  }
-  for (let x = 0; x < W; x++) px.push([x, GROUND]);
-  // launch pad
-  for (let x = PAD_X - 9; x <= PAD_X + 9; x++) px.push([x, GROUND - 1]);
-  // two server racks
-  for (const rx of [22, 150]) {
-    for (let y = GROUND - 28; y < GROUND; y++) {
-      px.push([rx, y], [rx + 19, y]);
-      if ((y - (GROUND - 28)) % 7 === 0) for (let x = rx; x <= rx + 19; x++) px.push([x, y]);
+function hexToRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [n >> 16, (n >> 8) & 255, n & 255];
+}
+
+// Sky, ground and structures never change: compute their tones once.
+function backdrop() {
+  const tone = new Float32Array(W * H);
+  const set = (x: number, y: number, v: number) => (tone[y * W + x] = v);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const v =
+        y < GROUND
+          ? 0.11 * (y / GROUND) ** 3
+          : y === GROUND
+            ? 0.5
+            : 0.3 - ((y - GROUND) / (H - GROUND)) * 0.2;
+      set(x, y, v);
     }
+  for (let x = PAD_X - 8; x <= PAD_X + 8; x++) set(x, GROUND - 1, 0.7);
+  for (let y = GROUND - 24; y < GROUND; y++) {
+    set(PAD_X - 13, y, 0.55);
+    set(PAD_X - 10, y, 0.55);
+    if (y % 3 === 0) for (let x = PAD_X - 12; x < PAD_X - 10; x++) set(x, y, 0.4);
   }
-  // tower next to the pad
-  for (let y = GROUND - 22; y < GROUND; y++) {
-    px.push([PAD_X - 14, y], [PAD_X - 11, y]);
-    if (y % 3 === 0) px.push([PAD_X - 13, y], [PAD_X - 12, y]);
-  }
-  for (let i = 0; i < 40; i++) px.push([Math.floor(rand() * W), Math.floor(rand() * (GROUND - 40))]);
-  return px;
+  for (const rx of RACKS)
+    for (let y = GROUND - 29; y < GROUND; y++)
+      for (let x = rx; x < rx + 18; x++) {
+        const edge = x === rx || x === rx + 17 || (y - (GROUND - 29)) % 7 === 0;
+        set(x, y, edge ? 0.55 : 0);
+      }
+  return tone;
 }
 
 export function PixelLaunch() {
@@ -80,24 +107,36 @@ export function PixelLaunch() {
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
 
-    const scene = staticPixels();
-    const stars = scene.slice(-40);
-    const ground = scene.slice(0, -40);
+    const base = backdrop();
+    const tone = new Float32Array(W * H);
+    const image = ctx.createImageData(W, H);
     const rand = rng(7);
+    const stars = Array.from({ length: 34 }, () => ({
+      x: Math.floor(rand() * W),
+      y: Math.floor(rand() * (GROUND - 45)),
+      p: rand() * 6,
+    }));
+    // Exhaust light falling on the ground around the pad, precomputed falloff.
+    const glow = Float32Array.from({ length: W * H }, (_, i) => {
+      const x = i % W;
+      const y = (i / W) | 0;
+      if (y < GROUND - 30) return 0;
+      return Math.exp(-Math.hypot(x - PAD_X, (y - GROUND) * 1.8) / 20);
+    });
     const particles: Particle[] = [];
+
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const dark = window.matchMedia("(prefers-color-scheme: dark)");
-    let color = getComputedStyle(canvas).color;
-    const onTheme = () => (color = getComputedStyle(canvas).color);
+    let palette = (dark.matches ? PALETTE_DARK : PALETTE_LIGHT).map(hexToRgb);
+    const onTheme = () => (palette = (dark.matches ? PALETTE_DARK : PALETTE_LIGHT).map(hexToRgb));
     dark.addEventListener("change", onTheme);
 
     let start = performance.now();
     let last = start;
-    let frame = 0;
 
     const relaunch = () => {
       const tc = (performance.now() - start) % CYCLE;
-      if (tc > LIFTOFF + 3500 || tc < IGNITE) start = performance.now() - IGNITE;
+      if (tc < IGNITE || tc > LIFTOFF + 3800) start = performance.now() - IGNITE;
     };
     canvas.addEventListener("pointerdown", relaunch);
 
@@ -106,19 +145,19 @@ export function PixelLaunch() {
       last = now;
       const tc = (now - start) % CYCLE;
       const s = Math.max(0, tc - LIFTOFF) / 1000;
-      const ry = REST_Y - 10 * s * s;
-      const shake = tc > IGNITE && tc < LIFTOFF + 600 ? Math.round(Math.sin(now / 25)) : 0;
-      const rx = PAD_X - 5 + shake;
+      const ry = REST_Y - 9 * s * s;
+      const shake = tc > IGNITE && tc < LIFTOFF + 500 ? Math.round(Math.sin(now / 22)) : 0;
+      const rx = PAD_X - (ROCKET_W >> 1) + shake;
       const firing = tc > IGNITE && ry > -ROCKET_H;
 
       if (firing) {
-        for (let i = 0; i < 4; i++) {
-          const max = 25 + rand() * 35;
+        for (let i = 0; i < 5; i++) {
+          const max = 20 + rand() * 40;
           particles.push({
-            x: PAD_X + (rand() - 0.5) * 4,
+            x: PAD_X + (rand() - 0.5) * 3,
             y: ry + ROCKET_H,
-            vx: (rand() - 0.5) * 0.5,
-            vy: 1 + rand() * 1.2,
+            vx: (rand() - 0.5) * 0.4,
+            vy: 1.2 + rand() * 1.4,
             life: max,
             max,
           });
@@ -128,52 +167,84 @@ export function PixelLaunch() {
         const p = particles[i];
         p.x += p.vx * k;
         p.y += p.vy * k;
-        if (p.y >= GROUND - 3 && p.vy > 0) {
-          // exhaust hits the ground and billows sideways
-          p.y = GROUND - 3 - rand() * 3;
-          p.vy = -rand() * 0.15;
-          p.vx = (p.x < PAD_X ? -1 : 1) * (0.6 + rand() * 1.4);
+        if (p.y >= GROUND - 2 && p.vy > 0) {
+          // exhaust hits the pad and billows sideways
+          p.y = GROUND - 2 - rand() * 4;
+          p.vy = -rand() * 0.12;
+          p.vx = (p.x < PAD_X ? -1 : 1) * (0.5 + rand() * 1.6);
         }
         p.life -= k;
-        if (p.life <= 0) particles.splice(i, 1);
+        if (p.life <= 0 || p.x < 0 || p.x >= W) particles.splice(i, 1);
+      }
+      if (!draw) return;
+
+      tone.set(base);
+      const max = (x: number, y: number, v: number) => {
+        if (x < 0 || x >= W || y < 0 || y >= H) return;
+        const i = y * W + x;
+        if (v > tone[i]) tone[i] = v;
+      };
+
+      for (const st of stars) max(st.x, st.y, 0.45 + 0.35 * Math.sin(now / 700 + st.p));
+
+      const near = Math.max(0, 1 - (REST_Y - ry) / 70);
+      if (firing && near > 0) {
+        const g = near * (0.55 + 0.15 * rand());
+        for (let i = (GROUND - 30) * W; i < W * H; i++) if (glow[i]) tone[i] += glow[i] * g;
       }
 
-      if (!draw) return;
-      frame++;
-      ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = color;
-      const px = (x: number, y: number) => ctx.fillRect(x | 0, y | 0, 1, 1);
-
-      for (const [x, y] of ground) px(x, y);
-      stars.forEach(([x, y], i) => {
-        if (dither(x, y, 0.55 + 0.45 * Math.sin(now / 500 + i))) px(x, y);
-      });
-      // blinking server LEDs
-      for (const rx0 of [22, 150])
+      // blinking server lights
+      RACKS.forEach((rx0, r) => {
         for (let u = 0; u < 4; u++) {
-          const on = ((frame >> 3) + u * 3 + rx0) % 5 !== 0;
-          if (on) px(rx0 + 3, GROUND - 25 + u * 7);
-          for (let x = rx0 + 7; x < rx0 + 16; x += 2) px(x, GROUND - 25 + u * 7);
+          const y = GROUND - 25 + u * 7;
+          const on = (Math.floor(now / 180) + u * 3 + r * 5) % 7 !== 0;
+          max(rx0 + 3, y, on ? 1 : 0.2);
+          for (let x = rx0 + 7; x < rx0 + 15; x += 2) max(x, y, 0.35);
         }
-      // smoke & flame
+      });
+
       for (const p of particles) {
         const v = p.life / p.max;
         const x = p.x | 0;
         const y = p.y | 0;
-        if (dither(x, y, v)) px(x, y);
-        if (dither(x + 1, y, v * 0.8)) px(x + 1, y);
-        if (dither(x, y + 1, v * 0.8)) px(x, y + 1);
+        max(x, y, v);
+        max(x + 1, y, v * 0.75);
+        max(x, y + 1, v * 0.75);
+        max(x - 1, y, v * 0.5);
       }
+
+      // rocket body, lit from the left
       ROCKET.forEach((row, y) => {
-        for (let x = 0; x < row.length; x++) if (row[x] === "#") px(rx + x, ry + y);
+        for (let x = 0; x < ROCKET_W; x++)
+          if (row[x] === "#") max(rx + x, Math.round(ry) + y, 1 - x * 0.045);
       });
+
+      // quantise: tone -> one of 3 ink levels (or ground) via ordered dither
+      const data = image.data;
+      for (let i = 0; i < W * H; i++) {
+        const t = Math.min(tone[i], 1) * palette.length;
+        let level = t | 0;
+        if (t - level > BAYER[((((i / W) | 0) & 7) << 3) | (i % W & 7)]) level++;
+        const o = i * 4;
+        if (level === 0) {
+          data[o + 3] = 0;
+          continue;
+        }
+        const [r, g, b] = palette[level - 1];
+        data[o] = r;
+        data[o + 1] = g;
+        data[o + 2] = b;
+        data[o + 3] = 255;
+      }
+      ctx.putImageData(image, 0, 0);
     };
 
     let raf = 0;
     if (reduced) {
-      // Simulate up to mid-flight, then draw a single still frame.
-      for (let t = start; t < start + LIFTOFF + 1400; t += 16.67) step(t, false);
-      step(start + LIFTOFF + 1400, true);
+      // Simulate up to lift-off, then draw a single still frame.
+      const still = start + LIFTOFF + 1200;
+      for (let t = start; t < still; t += 16.67) step(t, false);
+      step(still, true);
     } else {
       const loop = (now: number) => {
         step(now, true);
@@ -194,9 +265,9 @@ export function PixelLaunch() {
       ref={canvasRef}
       width={W}
       height={H}
-      aria-label="Pixel-art rocket launching from a pad between two servers"
+      aria-label="Dithered pixel animation of a rocket launching next to two servers"
       title="Click to launch again"
-      className="block aspect-[16/9] w-full cursor-pointer text-foreground [image-rendering:pixelated]"
+      className="block aspect-[5/3] w-full cursor-pointer [image-rendering:pixelated] [mask-composite:intersect] [mask-image:linear-gradient(to_right,transparent,black_18%,black_85%,transparent),linear-gradient(to_bottom,transparent,black_15%,black_80%,transparent)]"
     />
   );
 }
